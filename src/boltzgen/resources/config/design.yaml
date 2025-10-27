@@ -42,7 +42,6 @@ trainer:
 name: null
 output: null
 checkpoint: null
-matmul_precision: high
 recycling_steps: 3
 sampling_steps: 500
 diffusion_samples: 1

@@ -1,4 +1,4 @@
-from boltzgen.utils.quiet import quiet_startup
+from boltzgen.utils.quiet import quiet_startup, set_fp32_precision
 
 quiet_startup()
 
@@ -106,9 +106,8 @@ class Predict(Task):
         # Set no grad
         torch.set_grad_enabled(False)
 
-        # Experiment with this during training (high or medium)
-        if self.matmul_precision is not None:
-            torch.set_float32_matmul_precision(self.matmul_precision)
+        # Use new per-backend API to avoid TF32 deprecation spam
+        set_fp32_precision(self.matmul_precision)
 
         # Create trainer dict
         if self.trainer is None:
