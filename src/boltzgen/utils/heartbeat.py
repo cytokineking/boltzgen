@@ -44,7 +44,7 @@ class HeartbeatCallback(pl.Callback):  # type: ignore[attr-defined]
         self._last_write_ts: float = 0.0
         self._baseline_counts: Dict[str, int] = {}
         self._primary_counter: str = ""
-        self._expected_total: int = 0
+        self._fixed_expected_total: Optional[int] = None
         self._recent: List[Tuple[float, int]] = []  # (timestamp, produced_since_start)
         self._start_ts: float = 0.0
 
@@ -65,6 +65,25 @@ class HeartbeatCallback(pl.Callback):  # type: ignore[attr-defined]
         # Baseline counts (for resume/reuse) and initial write
         self._baseline_counts = {c["name"]: self._count_files(Path(c["dir"]), c["pattern"], c.get("exclude")) for c in counters}
         self._recent = [(self._start_ts, 0)]
+
+        # For design, compute a fixed expected_total from cfg.multiplicity and diffusion_samples
+        try:
+            writer_type = type(self.writer).__name__
+            if writer_type == "DesignWriter":
+                cfg = getattr(trainer.datamodule, "cfg", None)
+                if cfg is not None:
+                    multiplicity = int(getattr(cfg, "multiplicity", 0) or 0)
+                    yaml_path = getattr(cfg, "yaml_path", None)
+                    if isinstance(yaml_path, list):
+                        num_specs = len(yaml_path)
+                    else:
+                        num_specs = 1 if yaml_path is not None else 0
+                    ds = int(getattr(pl_module, "predict_args", {}).get("diffusion_samples", 1) or 1)
+                    if multiplicity and num_specs and ds:
+                        self._fixed_expected_total = multiplicity * ds * num_specs
+        except Exception:
+            self._fixed_expected_total = self._fixed_expected_total or None
+
         self._write_heartbeat(trainer, pl_module, force=True)
 
     def on_predict_batch_end(
@@ -181,21 +200,24 @@ class HeartbeatCallback(pl.Callback):  # type: ignore[attr-defined]
             rate_per_sec = 0.0
 
         # Percent and ETA (absolute progress)
-        # Remaining items come from current datamodule length; absolute expected = already produced + remaining
-        try:
-            remaining_items = len(getattr(trainer.datamodule, "predict_set"))
-        except Exception:
-            remaining_items = 0
-        writer_type = type(self.writer).__name__
-        # Only DesignWriter creates multiple artifacts per item (diffusion_samples). Others write one per item.
-        if writer_type == "DesignWriter":
-            try:
-                ds = int(getattr(pl_module, "predict_args", {}).get("diffusion_samples", 1))
-            except Exception:
-                ds = 1
-            expected = produced_total + remaining_items * max(1, ds)
+        if self._fixed_expected_total:
+            expected = max(int(self._fixed_expected_total), 1)
         else:
-            expected = produced_total + remaining_items
+            # Remaining items come from current datamodule length; absolute expected = already produced + remaining
+            try:
+                remaining_items = len(getattr(trainer.datamodule, "predict_set"))
+            except Exception:
+                remaining_items = 0
+            writer_type = type(self.writer).__name__
+            # Only DesignWriter creates multiple artifacts per item (diffusion_samples). Others write one per item.
+            if writer_type == "DesignWriter":
+                try:
+                    ds = int(getattr(pl_module, "predict_args", {}).get("diffusion_samples", 1))
+                except Exception:
+                    ds = 1
+                expected = produced_total + remaining_items * max(1, ds)
+            else:
+                expected = produced_total + remaining_items
 
         expected = max(expected, 1)
         percent = min(max(produced_total / expected, 0.0), 1.0)
@@ -206,6 +228,12 @@ class HeartbeatCallback(pl.Callback):  # type: ignore[attr-defined]
             eta_seconds = 0.0
         elif rate_per_sec > 0:
             eta_seconds = remaining / rate_per_sec
+        else:
+            # Fallback to overall average since start if window shows 0
+            elapsed = max(now - self._start_ts, 1e-6)
+            overall_rate = produced_since_start / elapsed
+            if overall_rate > 0:
+                eta_seconds = remaining / overall_rate
 
         # Step context from env
         step_label = os.environ.get("BOLTZGEN_PIPELINE_PROGRESS", "")
