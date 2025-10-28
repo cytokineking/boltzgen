@@ -23,6 +23,7 @@ from boltzgen.task.predict.writer import (
 )
 from boltzgen.task.task import Task
 from boltzgen.utils.pipeline_progress_bar import PipelineProgressBar
+from boltzgen.utils.heartbeat import HeartbeatCallback
 from boltzgen.model.models.boltz import Boltz
 
 
@@ -176,12 +177,15 @@ class Predict(Task):
         self.lightning_trainer = Trainer(
             default_root_dir=self.output,
             strategy=strategy,
-            callbacks=[self.writer]
-            + (
-                [PipelineProgressBar()]
-                if os.environ.get("BOLTZGEN_PIPELINE_STEP")
-                else []
-            ),
+            callbacks=[
+                self.writer,
+                HeartbeatCallback(
+                    output_dir=self.output,
+                    writer=self.writer,
+                    root_dir=os.path.dirname(self.output),
+                ),
+            ]
+            + ([PipelineProgressBar()] if os.environ.get("BOLTZGEN_PIPELINE_STEP") else []),
             **self.trainer,
         )
         if run_prediction:
