@@ -1,15 +1,22 @@
 import logging, warnings, os
-import torch
 
 
 def quiet_startup() -> None:
     # Reduce noisy distributed logs by default; users can override.
     os.environ.setdefault("TORCH_DISTRIBUTED_DEBUG", "OFF")
+    # Suppress C++ logger warnings and stack traces from libtorch/c10d during teardown
+    # Must be set BEFORE importing torch anywhere.
+    os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
+    # Fallback for older builds using c10 logger env var name
+    os.environ.setdefault("C10_LOG_LEVEL", "ERROR")
+    # Hide C++ stack traces for benign teardown exceptions
+    os.environ.setdefault("TORCH_SHOW_CPP_STACKTRACES", "0")
     # Prefer new var; drop deprecated to avoid warning
     os.environ.setdefault("TORCH_NCCL_ASYNC_ERROR_HANDLING", "1")
     if "NCCL_ASYNC_ERROR_HANDLING" in os.environ:
         os.environ.pop("NCCL_ASYNC_ERROR_HANDLING", None)
-    os.environ.setdefault("NCCL_DEBUG", "WARN")
+    # Quiet NCCL unless there's an actual error
+    os.environ.setdefault("NCCL_DEBUG", "ERROR")
 
     warnings.filterwarnings("ignore", message=r".*predict_dataloader.*num_workers.*")
     warnings.filterwarnings(
@@ -50,6 +57,9 @@ def set_fp32_precision(mode: str | None) -> None:
     Accepts legacy values "high"/"highest" (TF32) and "medium" (IEEE).
     Users may also pass "tf32" or "ieee" directly.
     """
+    # Import torch lazily so env vars in quiet_startup() take effect before torch loads
+    import torch  # local import on purpose
+
     if mode is None:
         return
     normalized = mode.lower()

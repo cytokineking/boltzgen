@@ -1,3 +1,7 @@
+from boltzgen.utils.quiet import quiet_startup
+
+quiet_startup()
+
 import datetime
 import os
 import warnings
