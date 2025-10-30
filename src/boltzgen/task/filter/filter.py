@@ -200,7 +200,7 @@ class Filter(Task):
 
         # we want to maximize all these metrics
         self.metrics: dict = {
-            "design_iiptm": 1,
+            "design_to_target_iptm": 1,
             "design_ptm": 1,
             "neg_min_design_to_target_pae": 1,
             "plip_hbonds" + ("_refolded" if from_inverse_folded else ""): 2,
@@ -209,7 +209,7 @@ class Filter(Task):
         }
         if use_affinity:
             self.metrics: dict = {
-                "design_iiptm": 1.1,
+                "design_to_target_iptm": 1.1,
                 "design_ptm": 1.1,
                 "neg_min_design_to_target_pae": 1.1,
                 "affinity_probability_binary1": 1,

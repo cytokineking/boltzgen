@@ -114,7 +114,7 @@ entities:
       # random number between 15 and 20 of designed residues (inclusive)
       sequence: 15..20AAAAAAVTTTT18PPP 
 
-  # A designed helicon 
+  # A designed helical peptides with WHL staple 
   # (see the constraints below that connect the peptide with the WHL ligand)
   - protein: 
       id: R
@@ -138,10 +138,10 @@ entities:
 constraints:
     # specify connections as if the minimum possible number of residues was sampled
   - bond:
-      atom1: [R, 4, SG] # connection for a helicon between small molecule and designed peptide
+      atom1: [R, 4, SG] # connection for a helical peptides with WHL staple  between small molecule and designed peptide
       atom2: [Q, 1, CK]
   - bond:
-      atom1: [R, 11, SG] # connection for a helicon between small molecule and designed peptide
+      atom1: [R, 11, SG] # connection for a helical peptides with WHL staple  between small molecule and designed peptide
       atom2: [Q, 1, CH]
   - bond:
       atom1: [S, 11, SG] # connection for a disulfide bond between Cys and Cys in designed peptide

@@ -143,7 +143,7 @@ When the pipeline completes your output directory will have:
 | Protocol (design-target) | Appropriate for                                                           | Major config differences        |
 |--------------------------|---------------------------------------------------------------------------|------------------------|
 | protein-anything         | Design proteins to bind proteins or peptides                              | Includes `design folding` step. |
-| peptide-anything         | Design peptides (including helicons, cyclic peptides) to bind proteins | No Cys are generated in inverse folding. No `design folding` step. Don't compute largest hydrophobic patch. |
+| peptide-anything         | Design (cyclic) peptides or others to bind proteins | No Cys are generated in inverse folding. No `design folding` step. Don't compute largest hydrophobic patch. |
 | protein-small_molecule   | Design proteins to bind small molecules                                | Includes binding affinity prediction. Includes `design folding` step. |
 | nanobody-anything        | Design nanobodies (single-domain antibodies)                           | No Cys are generated in inverse folding. No `design folding` step. Don't compute largest hydrophobic patch. |
 
@@ -268,7 +268,7 @@ entities:
       # random number between 15 and 20 of designed residues (inclusive)
       sequence: 15..20AAAAAAVTTTT18PPP 
 
-  # A designed helicon 
+  # A designed helical peptides with WHL staple  
   # (see the constraints below that connect the peptide with the WHL ligand)
   - protein: 
       id: R
@@ -292,10 +292,10 @@ entities:
 constraints:
     # specify connections as if the minimum possible number of residues was sampled
   - bond:
-      atom1: [R, 4, SG] # connection for a helicon between small molecule and designed peptide
+      atom1: [R, 4, SG] # connection for a helical peptides with WHL staple  between small molecule and designed peptide
       atom2: [Q, 1, CK]
   - bond:
-      atom1: [R, 11, SG] # connection for a helicon between small molecule and designed peptide
+      atom1: [R, 11, SG] # connection for a helical peptides with WHL staple  between small molecule and designed peptide
       atom2: [Q, 1, CH]
   - bond:
       atom1: [S, 11, SG] # connection for a disulfide bond between Cys and Cys in designed peptide

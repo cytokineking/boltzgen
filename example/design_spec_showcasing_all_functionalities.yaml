@@ -167,7 +167,7 @@ entities:
 constraints:
     # specify connections as if the minimum possible number of residues was sampled
   - bond:
-      atom1: [R, 4, SG] # connection for a helicon
+      atom1: [R, 4, SG] # connection for a helical peptides with WHL staple 
       atom2: [Q, 1, CK]
   - bond:
       atom1: [R, 11, SG]
