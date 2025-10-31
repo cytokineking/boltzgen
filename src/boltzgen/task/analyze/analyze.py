@@ -250,8 +250,9 @@ class Analyze(Task):
         num = len(self.data.predict_set)
         # Initialize heartbeat now that we know totals
         try:
+            # Write only to the run output root directory
             self._heartbeat = HeartbeatReporter(
-                output_dir=self.design_dir,
+                output_dir=self.design_dir.parent,
                 primary_counter="analyzed",
             )
             self._heartbeat.start(expected_total=num)

@@ -180,7 +180,7 @@ class Predict(Task):
             callbacks=[
                 self.writer,
                 HeartbeatCallback(
-                    output_dir=self.output,
+                    output_dir=os.path.dirname(self.output),
                     writer=self.writer,
                 ),
             ]

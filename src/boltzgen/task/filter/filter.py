@@ -316,8 +316,9 @@ class Filter(Task):
         # Initialize heartbeat for ranking/selection progress
         self._heartbeat: Optional[HeartbeatReporter] = None
         try:
+            # Write only to the run output root directory
             self._heartbeat = HeartbeatReporter(
-                output_dir=self.outdir,
+                output_dir=self.outdir.parent,
                 primary_counter="selected",
             )
             # Use k (budget) as the unit of progress for ranking/selection
