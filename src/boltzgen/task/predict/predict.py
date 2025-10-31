@@ -182,7 +182,6 @@ class Predict(Task):
                 HeartbeatCallback(
                     output_dir=self.output,
                     writer=self.writer,
-                    root_dir=os.path.dirname(self.output),
                 ),
             ]
             + ([PipelineProgressBar()] if os.environ.get("BOLTZGEN_PIPELINE_STEP") else []),

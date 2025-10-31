@@ -2,7 +2,7 @@ from boltzgen.utils.quiet import quiet_startup
 
 
 quiet_startup()
-from typing import Dict
+from typing import Dict, Optional
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -27,6 +27,7 @@ from boltzgen.task.filter.seqplot_utils import (
     plot_seq_liabilities,
 )
 from boltzgen.task.task import Task
+from boltzgen.utils.heartbeat import HeartbeatReporter
 
 
 class Filter(Task):
@@ -311,6 +312,19 @@ class Filter(Task):
     def run(self, config=None, jupyter_nb=False):
         self.load_dataframe()
         self.reset_outdir()
+
+        # Initialize heartbeat for ranking/selection progress
+        self._heartbeat: Optional[HeartbeatReporter] = None
+        try:
+            self._heartbeat = HeartbeatReporter(
+                output_dir=self.outdir,
+                primary_counter="selected",
+            )
+            # Use k (budget) as the unit of progress for ranking/selection
+            self._heartbeat.start(expected_total=self.budget)
+        except Exception:
+            self._heartbeat = None
+
         self.filter_df()
         self.sort_df()
         self.optimize_diversity()
@@ -339,6 +353,8 @@ class Filter(Task):
             csv_expl_rows,
             jupyter_nb=jupyter_nb,
         )
+        if self._heartbeat is not None:
+            self._heartbeat.complete()
 
     def reset_outdir(self):
         if self.outdir.exists():
@@ -574,6 +590,9 @@ class Filter(Task):
             return list(range(len(quality)))
 
         selected = [int(np.argmax(quality))]
+        if hasattr(self, "_heartbeat") and self._heartbeat is not None:
+            # 1 item selected so far
+            self._heartbeat.update(produced=len(selected), expected_total=k)
         remaining = set(range(len(quality))) - set(selected)
 
         heap = []
@@ -617,6 +636,8 @@ class Filter(Task):
                     selected.append(cand)
                     remaining.remove(cand)
                     buckets[bucket_idx] += 1
+                    if hasattr(self, "_heartbeat") and self._heartbeat is not None:
+                        self._heartbeat.update(produced=len(selected), expected_total=k)
                     break
         return sorted(selected)
 

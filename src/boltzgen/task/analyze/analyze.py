@@ -51,6 +51,7 @@ from boltzgen.data import const
 from boltzgen.task.task import Task
 from boltzgen.data.data import Structure
 from boltzgen.data.write.mmcif import to_mmcif
+from boltzgen.utils.heartbeat import HeartbeatReporter
 
 
 class Analyze(Task):
@@ -156,6 +157,9 @@ class Analyze(Task):
         if design_dir is not None:
             self.init_datasets(design_dir, load_dataset=False)
 
+        # CPU-step heartbeat reporter; initialized when counts are known
+        self._heartbeat: Optional[HeartbeatReporter] = None
+
         # Check that native structure is available if native metrics are desired
         if self.native and not self.data.return_native:
             msg = "native=True requires return_native=True in data config."
@@ -213,6 +217,8 @@ class Analyze(Task):
                             # Count successful completion
                             completed_task_ids.add(idx)
                             pbar.update(1)
+                            if self._heartbeat is not None:
+                                self._heartbeat.update(produced=len(completed_task_ids))
 
                         except BrokenProcessPool:
                             # Pool is dead, mark this idx completed.
@@ -232,6 +238,8 @@ class Analyze(Task):
     def run(self, config=None, run_prediction=False):
         self.distribute_tasks()
         self.aggregate_metrics()
+        if self._heartbeat is not None:
+            self._heartbeat.complete()
 
     def distribute_tasks(self):
         # The rdkit thing is necessary to make multiprocessing with the rdkit molecules work.
@@ -240,9 +248,20 @@ class Analyze(Task):
         # Compute metrics and write them to disk
         sample_ids = []
         num = len(self.data.predict_set)
+        # Initialize heartbeat now that we know totals
+        try:
+            self._heartbeat = HeartbeatReporter(
+                output_dir=self.design_dir,
+                primary_counter="analyzed",
+            )
+            self._heartbeat.start(expected_total=num)
+        except Exception:
+            self._heartbeat = None
         if num == 0:
             msg = "There were 0 samples to compute metrics for. Skipping the distribute_tasks step that calls compute_metrics"
             print(msg)
+            if self._heartbeat is not None:
+                self._heartbeat.complete()
             return
         num_processes = min(self.num_processes, multiprocessing.cpu_count())
         if num_processes == 1:
@@ -250,9 +269,13 @@ class Analyze(Task):
                 sample_id = self.compute_metrics(idx)
                 if sample_id is not None:
                     sample_ids.append(sample_id)
+                if self._heartbeat is not None:
+                    self._heartbeat.update(produced=len(sample_ids))
         else:
             sample_ids = self.run_parallel(num, num_processes)
         print(f"Computed metrics successfully for {len(sample_ids)} out of {num}.")
+        if self._heartbeat is not None:
+            self._heartbeat.update(produced=len(sample_ids), expected_total=num)
 
     def aggregate_metrics(self):
         # Load and aggregate saved metrics from disk
