@@ -41,10 +41,9 @@ COPY . /app
 RUN pip install --no-cache-dir -e /app
 
 ARG DOWNLOAD_WEIGHTS=false
-ARG HF_TOKEN=""
 RUN mkdir -p "${HF_HOME}" && \
     if [ "${DOWNLOAD_WEIGHTS}" = "true" ]; then \
-        HF_TOKEN="${HF_TOKEN}" boltzgen download --models-cache-dir "${HF_HOME}" --force-download --show-paths; \
+        boltzgen download all --cache "${HF_HOME}" --force_download; \
     fi
 
 ARG USERNAME=boltzgen
