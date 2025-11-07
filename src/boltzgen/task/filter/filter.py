@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 import heapq
 from textwrap import fill, dedent
 import re
+from datetime import datetime, timezone
 
 from boltzgen.task.analyze.analyze_utils import compute_liability_scores
 from boltzgen.task.filter.seqplot_utils import (
@@ -54,7 +55,7 @@ class Filter(Task):
         - ``ca_coords_sequences.pkl.gz`` (id→sequence mapping for diversity)
     outdir : str | Path, default=None
         Defaults to design_dir. Parent directory where results will be written. The step creates
-        ``{outdir}/final_ranked_designs`` and subfolders.
+        ``{outdir}/final_ranked_designs-<YYYYmmdd-HHMMSSZ>`` and subfolders.
     budget : int, default=30
         Number of designs to select by quality+diversity (Diverse set).
     use_affinity : bool, default=False
@@ -121,7 +122,7 @@ class Filter(Task):
 
     Outputs
     -------
-    On disk (under ``{outdir}/final_ranked_designs``):
+    On disk (under ``{outdir}/final_ranked_designs-<YYYYmmdd-HHMMSSZ>``):
         • ``final_{budget}_designs`` folder with .mmcif files
         • ``metrics_*.csv`` – full table with ranks/flags
         • ``diverse_selected_{div_budget}.csv`` – rows/IDs for Diverse set
@@ -192,12 +193,47 @@ class Filter(Task):
 
         if outdir is None:
             outdir = design_dir
-        self.outdir = Path(f"{outdir}") / "final_ranked_designs"
+        base = Path(f"{outdir}")
+
+        # Ensure parent exists and is writable in overlay setups (best-effort anchor)
+        base.mkdir(parents=True, exist_ok=True)
+        try:
+            (base / ".overlay_anchor").touch(exist_ok=True)
+        except Exception:
+            pass
+
+        # Use a timestamped directory to avoid deleting prior results
+        run_id = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%SZ')
+        outdir_ts = base / f"final_ranked_designs-{run_id}"
+        if outdir_ts.exists():
+            # Fallback uniqueness if multiple runs start within a second
+            counter = 1
+            while True:
+                candidate = base / f"final_ranked_designs-{run_id}-{counter}"
+                if not candidate.exists():
+                    outdir_ts = candidate
+                    break
+                counter += 1
+
+        self.outdir = outdir_ts
         self.top_dir = self.outdir / f"intermediate_ranked_{top_budget}_designs"
         self.div_dir = self.outdir / f"final_{budget}_designs"
+
+        # Create required directories (non-destructive)
         self.outdir.mkdir(parents=True, exist_ok=True)
         self.top_dir.mkdir(parents=True, exist_ok=True)
         self.div_dir.mkdir(parents=True, exist_ok=True)
+
+        # Early writability check on the run outdir
+        try:
+            _anchor = self.outdir / ".anchor"
+            with _anchor.open("w") as f:
+                f.write("")
+            _anchor.unlink(missing_ok=True)  # py>=3.8
+        except Exception as e:
+            raise PermissionError(
+                f"Output directory not writable: {self.outdir}. Ensure this path is on a writable filesystem/overlay."
+            ) from e
 
         # we want to maximize all these metrics
         self.metrics: dict = {
@@ -358,8 +394,7 @@ class Filter(Task):
             self._heartbeat.complete()
 
     def reset_outdir(self):
-        if self.outdir.exists():
-            shutil.rmtree(self.outdir)
+        """Overlay-friendly reset: ensure directories exist; do not delete anything."""
         self.outdir.mkdir(parents=True, exist_ok=True)
         self.top_dir.mkdir(parents=True, exist_ok=True)
         self.div_dir.mkdir(parents=True, exist_ok=True)
@@ -516,6 +551,14 @@ class Filter(Task):
 
         top_dir2 = self.top_dir / "before_refolding"
         top_dir2.mkdir(parents=True, exist_ok=True)
+        copy_errors = []
+
+        def _safe_copy(src: Path, dst: Path):
+            try:
+                shutil.copy(src, dst)
+            except Exception as e:
+                copy_errors.append((str(src), str(dst), repr(e)))
+                print(f"Warning: failed to copy {src} -> {dst}: {e}")
         for i, (idx, row) in tqdm(
             enumerate(self.df[: self.top_budget].iterrows()),
             desc="copy top design files",
@@ -524,11 +567,11 @@ class Filter(Task):
             new_filename = f"rank{i:0{num_digits}d}_{filename}"
             src = self.design_dir / filename
             dst = top_dir2 / new_filename
-            shutil.copy2(src, dst)
+            _safe_copy(src, dst)
 
             src = self.design_dir / "refold_cif" / filename
             dst = self.top_dir / new_filename
-            shutil.copy2(src, dst)
+            _safe_copy(src, dst)
 
         # save to output/diverse_* directory
         self.div_dir.mkdir(parents=True, exist_ok=True)
@@ -539,13 +582,19 @@ class Filter(Task):
             qualityrank = self.df_m.loc[i, "final_rank"]
             filename = src.name
             new_filename = f"rank{qualityrank:0{num_digits}d}_{filename}"
-            shutil.copy2(src, div_dir2 / new_filename)
+            _safe_copy(src, div_dir2 / new_filename)
 
             src = self.design_dir / "refold_cif" / self.df_m.loc[i, "file_name"]
-            shutil.copy2(src, self.div_dir / new_filename)
+            _safe_copy(src, self.div_dir / new_filename)
         self.df_div.to_csv(
             self.outdir / f"final_designs_metrics_{self.budget}.csv", index=False
         )
+        if copy_errors:
+            print(
+                f"Completed with {len(copy_errors)} file copy warnings. Showing up to first 10:"
+            )
+            for src, dst, err in copy_errors[:10]:
+                print(f"  - {src} -> {dst}: {err}")
         print("Files + CSV saved to", self.outdir)
 
         self.df.to_csv(self.outdir / f"all_designs_metrics.csv", index=False)
@@ -554,7 +603,11 @@ class Filter(Task):
         # Load structures and sequences to compute similarities
         seq_path = self.design_dir / "ca_coords_sequences.pkl.gz"
         if not seq_path.exists():
-            raise FileNotFoundError(f"Expected {seq_path} to exist")
+            raise FileNotFoundError(
+                "Missing required sequence mapping file for diversity selection: "
+                f"{seq_path}. This file is produced by the analysis step (ca_coords_sequences.pkl.gz). "
+                "Please rerun the analysis step before filtering."
+            )
         df_seq = pd.read_pickle(seq_path)[["id", "sequence"]]
 
         self.df_m = pd.merge(self.df, df_seq, on="id", how="inner").reset_index(
