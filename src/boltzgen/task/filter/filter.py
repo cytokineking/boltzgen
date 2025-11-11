@@ -316,7 +316,7 @@ class Filter(Task):
                     {
                         "feature": "ALA_fraction",
                         "lower_is_better": True,
-                        "threshold": 0.2,
+                        "threshold": 0.3,
                     },
                     {
                         "feature": "GLY_fraction",
@@ -331,7 +331,7 @@ class Filter(Task):
                     {
                         "feature": "LEU_fraction",
                         "lower_is_better": True,
-                        "threshold": 0.2,
+                        "threshold": 0.3,
                     },
                     {
                         "feature": "VAL_fraction",

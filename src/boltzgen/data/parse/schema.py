@@ -1072,7 +1072,9 @@ class YamlDesignParser:
                 raise ValueError(f"Unsupported file type: {str(path)}")
 
         name = path.stem
-        target = self.parse_boltzgen_schema(name, data, mols, mol_dir, base_file_path=path.parent)
+        target = self.parse_boltzgen_schema(
+            name, data, mols, mol_dir, base_file_path=path.parent
+        )
         return target
 
     def log_once(self, msg: str):
@@ -1570,7 +1572,7 @@ class YamlDesignParser:
         if isinstance(path, list) or Path(path).suffix == ".yaml":
             if isinstance(path, list):
                 path = random.choice(path)
-            
+
             resolved_path = (base_file_path / path).resolve()
             with resolved_path.open("r") as f:
                 file = yaml.safe_load(f)
@@ -1968,6 +1970,7 @@ class YamlDesignParser:
 
         # Parse and apply design insertions
         if design_insertions is not None:
+            num_inserted = 0
             for list_element in design_insertions:
                 insertion = list_element["insertion"]
                 if "id" not in insertion:
@@ -1978,10 +1981,15 @@ class YamlDesignParser:
                     raise ValueError(msg)
                 chain_id = insertion["id"]
                 res_index = insertion["res_index"] - 1  # 1 index input to 0 indexed
+                res_index += num_inserted
                 ss_insert_type = insertion.get("secondary_structure", "UNSPECIFIED")
+
+                # We add +1 because the parse_range function is usually used for indexing where we then convert the 1 based inputs to 0 indexing
                 num_residues = insertion["num_residues"]
                 num_residues = parse_range(num_residues)
                 num_residues = np.random.choice(num_residues).item()
+                num_residues += 1
+                num_inserted += num_residues
 
                 if chain_id not in structure.chains["name"]:
                     msg = f"Specified chain id {chain_id} not in file {path}."

@@ -1202,7 +1202,6 @@ def check_design_spec(
     parsed = parser.parse_yaml(design_spec, mols, moldir)
     structure = parsed.structure
     design_info = parsed.design_info
-
     design_color_features = np.ones_like(design_info.res_binding_type) * 0.8
     design_color_features[design_info.res_binding_type.astype(bool)] = 1.0
     extract_mask = np.zeros(len(structure.residues), dtype=bool)
