@@ -44,12 +44,18 @@ conda activate bg
 
 > If you open a **new** terminal session later, you must run `conda activate bg` again before using BoltzGen.
 
-### 4 - Install BoltzGen from source
+### 4 - Install BoltzGen
 
-Download the BoltzGen repository, change directory into the boltzgen directory, and install BoltzGen from source:
+Run the command below to install BoltzGen from PyPI:
 
 ```bash
 pip install boltzgen
+```
+
+Alternatively, if you prefer to install an editable, locally-managed copy, download the BoltzGen repository, change directory into the boltzgen directory, and install BoltzGen from source:
+
+```bash
+pip install -e .
 ```
 </details>
 
