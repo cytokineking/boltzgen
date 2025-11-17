@@ -559,6 +559,22 @@ class Filter(Task):
             except Exception as e:
                 copy_errors.append((str(src), str(dst), repr(e)))
                 print(f"Warning: failed to copy {src} -> {dst}: {e}")
+
+        def _resolve_refold_src(filename: str) -> Path:
+            """
+            Prefer refolded complex CIFs; if they are missing (e.g., folding
+            skipped or failed), fall back to the inverse-folded / original CIF
+            in ``design_dir`` so that final_ranked_designs still contains a
+            structure for the selected design.
+            """
+            primary = self.design_dir / "refold_cif" / filename
+            if primary.exists():
+                return primary
+            fallback = self.design_dir / filename
+            if fallback.exists():
+                return fallback
+            return primary
+
         for i, (idx, row) in tqdm(
             enumerate(self.df[: self.top_budget].iterrows()),
             desc="copy top design files",
@@ -569,7 +585,7 @@ class Filter(Task):
             dst = top_dir2 / new_filename
             _safe_copy(src, dst)
 
-            src = self.design_dir / "refold_cif" / filename
+            src = _resolve_refold_src(filename)
             dst = self.top_dir / new_filename
             _safe_copy(src, dst)
 
@@ -584,7 +600,7 @@ class Filter(Task):
             new_filename = f"rank{qualityrank:0{num_digits}d}_{filename}"
             _safe_copy(src, div_dir2 / new_filename)
 
-            src = self.design_dir / "refold_cif" / self.df_m.loc[i, "file_name"]
+            src = _resolve_refold_src(self.df_m.loc[i, "file_name"])
             _safe_copy(src, self.div_dir / new_filename)
         self.df_div.to_csv(
             self.outdir / f"final_designs_metrics_{self.budget}.csv", index=False
