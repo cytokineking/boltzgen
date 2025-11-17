@@ -439,25 +439,36 @@ class Analyze(Task):
             print("\nOverall average metrics:", avg_metrics)
 
             # Make residue distribution plot
-            native_stats = np.load("data/native_statistics.npz")
-            design_freqs = np.array(
-                [
-                    avg_metrics[f"{k}_fraction"]
-                    for k in const.fake_atom_placements.keys()
-                ]
-            )
-            x = np.arange(len(const.fake_atom_placements.keys()))
-            width = 0.15
-            fig_res, ax = plt.subplots(figsize=(12, 6))
-            ax.bar(x - width / 2, design_freqs, width, label="Design frequency")
-            ax.bar(
-                x + width / 2, native_stats["res_dist"], width, label="Data frequency"
-            )
-            ax.set_xlabel("Res Type")
-            ax.set_ylabel("Probability")
-            ax.set_title("Res Type distributions")
-            ax.set_xticks(x)
-            ax.set_xticklabels(const.fake_atom_placements.keys())
+            try:
+                native_stats = np.load("data/native_statistics.npz")
+            except FileNotFoundError:
+                print(
+                    "[Warning] data/native_statistics.npz not found. Skipping residue distribution plot."
+                )
+                native_stats = None
+
+            if native_stats is not None:
+                design_freqs = np.array(
+                    [
+                        avg_metrics[f"{k}_fraction"]
+                        for k in const.fake_atom_placements.keys()
+                    ]
+                )
+                x = np.arange(len(const.fake_atom_placements.keys()))
+                width = 0.15
+                fig_res, ax = plt.subplots(figsize=(12, 6))
+                ax.bar(x - width / 2, design_freqs, width, label="Design frequency")
+                ax.bar(
+                    x + width / 2,
+                    native_stats["res_dist"],
+                    width,
+                    label="Data frequency",
+                )
+                ax.set_xlabel("Res Type")
+                ax.set_ylabel("Probability")
+                ax.set_title("Res Type distributions")
+                ax.set_xticks(x)
+                ax.set_xticklabels(const.fake_atom_placements.keys())
             ax.legend()
             ax.grid(True, which="both", axis="y", linestyle="--", linewidth=0.5)
             plt.tight_layout()
@@ -661,16 +672,23 @@ class Analyze(Task):
 
         # largest hydrophobic patch area original
         if self.largest_hydrophobic:
-            if not des_cif_path.exists():
-                save_design_only_structure_to_cif(
-                    atom_design_mask=atom_chain_mask,
-                    structure=feat["str_gen"],
-                    output_path=des_cif_path,
+            try:
+                if not des_cif_path.exists():
+                    save_design_only_structure_to_cif(
+                        atom_design_mask=atom_chain_mask,
+                        structure=feat["str_gen"],
+                        output_path=des_cif_path,
+                    )
+                area = largest_hydrophobic_patch_area(des_cif_path)
+                metrics["design_largest_hydrophobic_patch"] = area
+            except Exception as e:
+                print(
+                    f"[Warning] computing largest hydrophobic patch (original) for {path}: {e}. Skipping this metric."
                 )
-            area = largest_hydrophobic_patch_area(des_cif_path)
-            metrics["design_largest_hydrophobic_patch"] = area
-        if des_cif_path is not None:
-            des_cif_path.unlink(missing_ok=True)
+                traceback.print_exc()
+            finally:
+                if des_cif_path is not None:
+                    des_cif_path.unlink(missing_ok=True)
 
         # Count logging
         metrics["num_prot_tokens"] = (
@@ -685,14 +703,20 @@ class Analyze(Task):
 
         # delta sasa for original
         if self.delta_sasa_original:
-            (
-                delta_sasa_orig,
-                design_sasa_unbound,
-                design_sasa_bound,
-            ) = get_delta_sasa(path, resolved_atoms_target_mask)
-            metrics["delta_sasa_original"] = delta_sasa_orig
-            metrics["design_sasa_unbound_original"] = design_sasa_unbound
-            metrics["design_sasa_bound_original"] = design_sasa_bound
+            try:
+                (
+                    delta_sasa_orig,
+                    design_sasa_unbound,
+                    design_sasa_bound,
+                ) = get_delta_sasa(path, resolved_atoms_target_mask)
+                metrics["delta_sasa_original"] = delta_sasa_orig
+                metrics["design_sasa_unbound_original"] = design_sasa_unbound
+                metrics["design_sasa_bound_original"] = design_sasa_bound
+            except Exception as e:
+                print(
+                    f"[Warning] computing delta_sasa_original for {path}: {e}. Skipping these metrics."
+                )
+                traceback.print_exc()
 
         # Noncovalents metrics for original
         try:
@@ -1036,18 +1060,25 @@ class Analyze(Task):
 
             # largest hydrophobic patch area refolded
             if self.largest_hydrophobic_refolded:
-                if not des_refold_cif_path.exists():
-                    structure, _, _ = Structure.from_feat(feat_out)
+                try:
+                    if not des_refold_cif_path.exists():
+                        structure, _, _ = Structure.from_feat(feat_out)
 
-                    save_design_only_structure_to_cif(
-                        atom_design_mask=atom_chain_mask,
-                        structure=structure,
-                        output_path=des_refold_cif_path,
+                        save_design_only_structure_to_cif(
+                            atom_design_mask=atom_chain_mask,
+                            structure=structure,
+                            output_path=des_refold_cif_path,
+                        )
+                    area_refold = largest_hydrophobic_patch_area(des_refold_cif_path)
+                    metrics["design_largest_hydrophobic_patch_refolded"] = area_refold
+                except Exception as e:
+                    print(
+                        f"[Warning] computing largest hydrophobic patch (refolded) for {path}: {e}. Skipping this metric."
                     )
-                area_refold = largest_hydrophobic_patch_area(des_refold_cif_path)
-                metrics["design_largest_hydrophobic_patch_refolded"] = area_refold
-            if des_refold_cif_path is not None:
-                des_refold_cif_path.unlink(missing_ok=True)
+                    traceback.print_exc()
+                finally:
+                    if des_refold_cif_path is not None:
+                        des_refold_cif_path.unlink(missing_ok=True)
 
             # Compute sequence based hydrophobicity
             metrics["design_chain_hydrophobicity"] = calc_hydrophobicity(
@@ -1059,16 +1090,21 @@ class Analyze(Task):
             if self.delta_sasa_refolded:
                 cif_path_refolded = self.refold_cif_dir / f"{feat['id']}.cif"
 
-                # Compute delta sasa
-                (
-                    delta_sasa_refolded,
-                    design_sasa_unbound,
-                    design_sasa_bound,
-                ) = get_delta_sasa(cif_path_refolded, resolved_atoms_target_mask)
+                try:
+                    (
+                        delta_sasa_refolded,
+                        design_sasa_unbound,
+                        design_sasa_bound,
+                    ) = get_delta_sasa(cif_path_refolded, resolved_atoms_target_mask)
 
-                metrics["delta_sasa_refolded"] = delta_sasa_refolded
-                metrics["design_sasa_unbound_refolded"] = design_sasa_unbound
-                metrics["design_sasa_bound_refolded"] = design_sasa_bound
+                    metrics["delta_sasa_refolded"] = delta_sasa_refolded
+                    metrics["design_sasa_unbound_refolded"] = design_sasa_unbound
+                    metrics["design_sasa_bound_refolded"] = design_sasa_bound
+                except Exception as e:
+                    print(
+                        f"[Warning] computing delta_sasa_refolded for {cif_path_refolded}: {e}. Skipping these metrics."
+                    )
+                    traceback.print_exc()
 
             # noncovalents metrics for refolded structure
             if self.noncovalents_refolded:
