@@ -1953,14 +1953,14 @@ class YamlDesignParser:
                     else:
                         indices = parse_range(loop, c_start, c_end)
                         fss_type[indices] = const.ss_type_ids["LOOP"]
-                elif "helix" in chain:
+                if "helix" in chain:
                     helix = chain["helix"]
                     if helix == "all":
                         fss_type[c_start:c_end] = const.ss_type_ids["HELIX"]
                     else:
                         indices = parse_range(helix, c_start, c_end)
                         fss_type[indices] = const.ss_type_ids["HELIX"]
-                elif "sheet" in chain:
+                if "sheet" in chain:
                     sheet = chain["sheet"]
                     if sheet == "all":
                         fss_type[c_start:c_end] = const.ss_type_ids["SHEET"]

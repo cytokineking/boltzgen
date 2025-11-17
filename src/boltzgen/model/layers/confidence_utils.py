@@ -295,7 +295,7 @@ def compute_ptms(logits, x_preds, feats, multiplicity):
     interact_mask = torch.zeros_like(feats["design_mask"])
     if (
         is_chain_design_token.sum() > 0
-        and (~(is_chain_design_token.int())).sum() > 0
+        and (1 - is_chain_design_token.int()).sum() > 0
     ):
         atom_chain_design_mask = (torch.bmm(    feats["atom_to_token"].bfloat16(),    feats["chain_design_mask"].bfloat16().unsqueeze(-1),).squeeze(-1).bool())
         x_target = x_pred_half[~atom_chain_design_mask]

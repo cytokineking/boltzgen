@@ -581,3 +581,22 @@ python src/boltzgen/resources/main.py src/boltzgen/resources/config/train/boltzg
        pretrained=./training_data/boltzgen1_structuretrained_small.ckpt \
        name=boltzgen_small_pretrained
 ```
+
+# Cite
+```
+@misc{stark2025boltzgen,
+  title        = {BoltzGen: Toward Universal Binder Design},
+  author       = {Hannes Stark and Felix Faltings and MinGyu Choi and Yuxin Xie and Eunsu Hur and 
+                  Timothy O'Donnell and Anton Bushuiev and Talip Uçar and Saro Passaro and Weian Mao and 
+                  Mateo Reveiz and Roman Bushuiev and Tomáš Pluskal and Josef Sivic and Karsten Kreis and 
+                  Arash Vahdat and Shamayeeta Ray and Jonathan T. Goldstein and Andrew Savinov and 
+                  Jacob A. Hambalek and Anshika Gupta and Diego A. Taquiri-Diaz and Yaotian Zhang and 
+                  A. Katherine Hatstat and Angelika Arada and Nam Hyeong Kim and Ethel Tackie-Yarboi and 
+                  Dylan Boselli and Lee Schnaider and Chang C. Liu and Gene-Wei Li and Denes Hnisz and 
+                  David M. Sabatini and William F. DeGrado and Jeremy Wohlwend and Gabriele Corso and 
+                  Regina Barzilay and Tommi Jaakkola},
+  year         = {2025},
+  howpublished = {\url{https://hannes-stark.com/assets/boltzgen.pdf}},
+  note         = {Preprint, accessed November 10, 2025}
+}
+```
