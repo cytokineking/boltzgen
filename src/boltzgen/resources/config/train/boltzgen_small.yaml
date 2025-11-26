@@ -47,7 +47,7 @@ data:
       cropper:
         _target_: boltzgen.data.crop.multimer.MultimerCropper
         neighborhood_sizes: [ 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40 ]
-      split: ./data/pdb_sequences/boltz2/validation_ids_boltz2_all.txt
+      split: ./src/boltzgen/resources/splits/validation_ids_boltz2_all.txt
       symmetry_correction: false
       val_group: "RCSB"
 
@@ -100,12 +100,12 @@ data:
     chain_reindexing: false
 
   # Design datasets
-  monomer_split: data/pdb_sequences/val_monomers_boltzgen_min50_max220.txt
+  monomer_split: ./src/boltzgen/resources/splits/val_monomers_boltzgen_min50_max220.txt
   monomer_target_dir: ./training_data/targets
   monomer_target_structure_condition: true
   monomer_seq_len: 100
 
-  ligand_split: data/pdb_sequences/val_ccd_pdb_pairs_boltzgen.txt
+  ligand_split: ./src/boltzgen/resources/splits/val_ccd_pdb_pairs_boltzgen.txt
   ligand_target_dir: ./training_data/targets
   ligand_seq_len: 100
 

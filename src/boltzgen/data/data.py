@@ -1926,7 +1926,7 @@ class DesignInfo(NumpySerializable):
             and len(info.res_structure_groups) == len(info.res_ss_types)
             and len(info.res_ss_types) == len(info.res_binding_type)
         ), (
-            "There must be a bug in the code. All residue level design info objects should have the same lenght."
+            "There must be a bug in the code. All residue level design info objects should have the same length."
         )
 
         if any(info.res_design_mask.astype(bool) & (info.res_structure_groups != 0)):

@@ -670,7 +670,7 @@ def parse_range(ranges, c_start=0, c_end=None):
         raise ValueError(msg)
 
     if c_end is not None and end > c_end - c_start:
-        msg = f"Specified end {ranges} is higher than the lenght of the chain."
+        msg = f"Specified end {ranges} is higher than the length of the chain."
         raise ValueError(msg)
     return indices
 

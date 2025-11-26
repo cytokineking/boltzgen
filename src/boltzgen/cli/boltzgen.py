@@ -37,6 +37,7 @@ import subprocess
 import os
 import time
 import math
+import sys
 import numpy as np
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -765,7 +766,7 @@ def execute_command(args: argparse.Namespace) -> None:
         start = time.time()
         if args.subprocess:
             command = [
-                "python",
+                sys.executable,
                 str(main_script),
                 str(config_path),
             ]

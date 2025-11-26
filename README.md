@@ -185,7 +185,7 @@ Small example of a protein design against a target protein without binding site 
 ```yaml
 entities:
   # Designed protein with between 80 and 140 residues 
-  # (The lenght is randomly sampled)
+  # (The length is randomly sampled)
   - protein: 
       id: B
       sequence: 80..140
@@ -584,19 +584,11 @@ python src/boltzgen/resources/main.py src/boltzgen/resources/config/train/boltzg
 
 # Cite
 ```
-@misc{stark2025boltzgen,
-  title        = {BoltzGen: Toward Universal Binder Design},
-  author       = {Hannes Stark and Felix Faltings and MinGyu Choi and Yuxin Xie and Eunsu Hur and 
-                  Timothy O'Donnell and Anton Bushuiev and Talip Uçar and Saro Passaro and Weian Mao and 
-                  Mateo Reveiz and Roman Bushuiev and Tomáš Pluskal and Josef Sivic and Karsten Kreis and 
-                  Arash Vahdat and Shamayeeta Ray and Jonathan T. Goldstein and Andrew Savinov and 
-                  Jacob A. Hambalek and Anshika Gupta and Diego A. Taquiri-Diaz and Yaotian Zhang and 
-                  A. Katherine Hatstat and Angelika Arada and Nam Hyeong Kim and Ethel Tackie-Yarboi and 
-                  Dylan Boselli and Lee Schnaider and Chang C. Liu and Gene-Wei Li and Denes Hnisz and 
-                  David M. Sabatini and William F. DeGrado and Jeremy Wohlwend and Gabriele Corso and 
-                  Regina Barzilay and Tommi Jaakkola},
-  year         = {2025},
-  howpublished = {\url{https://hannes-stark.com/assets/boltzgen.pdf}},
-  note         = {Preprint, accessed November 10, 2025}
+@article{stark2025boltzgen,
+	author = {Stark, Hannes and Faltings, Felix and Choi, MinGyu and Xie, Yuxin and Hur, Eunsu and O{\textquoteright}Donnell, Timothy John and Bushuiev, Anton and U{\c c}ar, Talip and Passaro, Saro and Mao, Weian and Reveiz, Mateo and Bushuiev, Roman and Pluskal, Tom{\'a}{\v s} and Sivic, Josef and Kreis, Karsten and Vahdat, Arash and Ray, Shamayeeta and Goldstein, Jonathan T. and Savinov, Andrew and Hambalek, Jacob A. and Gupta, Anshika and Taquiri-Diaz, Diego A. and Zhang, Yaotian and Hatstat, A. Katherine and Arada, Angelika and Kim, Nam Hyeong and Tackie-Yarboi, Ethel and Boselli, Dylan and Schnaider, Lee and Liu, Chang C. and Li, Gene-Wei and Hnisz, Denes and Sabatini, David M. and DeGrado, William F. and Wohlwend, Jeremy and Corso, Gabriele and Barzilay, Regina and Jaakkola, Tommi},
+	title = {BoltzGen: Toward Universal Binder Design},
+	year = {2025},
+	doi = {10.1101/2025.11.20.689494},
+	journal = {bioRxiv}
 }
 ```

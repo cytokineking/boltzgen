@@ -911,7 +911,9 @@ def parse_mmcif(  # noqa: C901, PLR0915, PLR0912
         Path to the MMCIF file.
 
     use_original_res_idx : bool
-        Uses the res_idx for the res_idx in the Residues in the returned structure that was in the mmcif file for each residue instead of using the index in the seqres that is obtained after aligning the seqres to the sequence of amino acids from the present residues.
+        Uses the res_idx for the res_idx in the Residues in the returned structure 
+        that was in the mmcif file for each residue instead of using the index in the 
+        seqres that is obtained after aligning the seqres to the sequence of amino acids from the present residues.
 
     Returns
     -------
