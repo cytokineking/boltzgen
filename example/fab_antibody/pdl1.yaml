@@ -1,0 +1,13 @@
+entities:
+    - file:
+        path: 7uxq.cif
+        include:
+            - chain:
+                id: A
+        
+    - file:
+        path: 
+            - ../fab_scaffolds/4nyl.yaml
+            - ../fab_scaffolds/5vzy.yaml
+            - ../fab_scaffolds/6b3s.yaml
+

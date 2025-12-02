@@ -1688,6 +1688,7 @@ class YamlDesignParser:
 
         proximity_mask = np.ones(num_res)
         if include_proximity is not None:
+            proximity_mask = np.zeros(num_res)
             coords = np.array(
                 [
                     structure.atoms[r["atom_center"]]["coords"]
@@ -1725,7 +1726,7 @@ class YamlDesignParser:
                 distances = cdist(coords, queries)
                 dist_mask = distances < radius
                 dist_mask = dist_mask.sum(-1) > 0
-                proximity_mask *= dist_mask
+                proximity_mask += dist_mask
         include_mask *= proximity_mask
 
         # Build exclude mask

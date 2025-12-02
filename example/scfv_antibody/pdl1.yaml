@@ -1,0 +1,22 @@
+entities:
+    - file:
+        path: 7uxq.cif
+        include:
+            - chain:
+                id: A
+    - file:
+        path:
+            - ../scfv_scaffolds/adalimumab.6cr1.yaml
+            - ../scfv_scaffolds/belimumab.5y9k.yaml
+            - ../scfv_scaffolds/dupilumab.6wgb.yaml
+            - ../scfv_scaffolds/golimumab.5yoy.yaml
+            - ../scfv_scaffolds/guselkumab.4m6m.yaml
+            - ../scfv_scaffolds/nirsevimab.5udc.yaml
+            - ../scfv_scaffolds/sarilumab.8iow.yaml
+            - ../scfv_scaffolds/secukinumab.6wio.yaml
+            - ../scfv_scaffolds/tezepelumab.5j13.yaml
+            - ../scfv_scaffolds/tralokinumab.5l6y.yaml
+            - ../scfv_scaffolds/ustekinumab.3hmw.yaml
+            - ../scfv_scaffolds/mab1.3h42.yaml
+            - ../scfv_scaffolds/necitumumab.6b3s.yaml
+            - ../scfv_scaffolds/crenezumab.5vzy.yaml
