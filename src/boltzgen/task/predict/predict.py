@@ -139,6 +139,7 @@ class Predict(Task):
             use_ema=self.use_ema,
             checkpoint_diffusion_conditioning=self.checkpoint_diffusion_conditioning,
             map_location="cpu",
+            weights_only=False,
             predict_args=self.predict_args,
             **self.override,
         )

@@ -144,7 +144,7 @@ class Training(Task):
 
             print(f"Loading model from {file_path}")
             model_module = type(model_module).load_from_checkpoint(
-                file_path, map_location="cpu", strict=False, **(model_module.hparams)
+                file_path, map_location="cpu", strict=False, weights_only=False, **(model_module.hparams)
             )
 
         # Create checkpoint callback

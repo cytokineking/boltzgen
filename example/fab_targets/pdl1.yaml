@@ -19,4 +19,4 @@ entities:
             - ../fab_scaffolds/ustekinumab.3hmw.yaml
             - ../fab_scaffolds/mab1.3h42.yaml
             - ../fab_scaffolds/necitumumab.6b3s.yaml
-            - ../scfv_scaffolds/crenezumab.5vzy.yaml
+            - ../fab_scaffolds/crenezumab.5vzy.yaml

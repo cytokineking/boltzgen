@@ -154,6 +154,10 @@ class Analyze(Task):
         self.slurm = slurm
         self.diversity_subset = diversity_subset
 
+        # Prevent each worker process from spawning its own multithreaded pools
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+
         if design_dir is not None:
             self.init_datasets(design_dir, load_dataset=False)
 

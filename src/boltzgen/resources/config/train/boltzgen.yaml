@@ -428,7 +428,6 @@ model:
           num_workers: 4
           pin_memory: true
         return_native: true
-      predict_task: null
 
     folding_checkpoint: ./training_data/boltz2_fold.ckpt
 

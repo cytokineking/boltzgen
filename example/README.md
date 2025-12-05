@@ -19,8 +19,7 @@ We provide many example `.yaml` files in the `example/` directory, including:
 - [vanilla_peptide_with_target_binding_site/beetletert.yaml](vanilla_peptide_with_target_binding_site/beetletert.yaml)
 - [peptide_against_specific_site_on_ragc/rragc.yaml](peptide_against_specific_site_on_ragc/rragc.yaml)
 - [nanobody/penguinpox.yaml](nanobody/penguinpox.yaml)
-- [example/scfv_antibody/pdl1.yaml](example/scfv_antibody/pdl1.yaml)
-- [example/fab_antibody/pdl1.yaml](example/fab_antibody/pdl1.yaml)
+- [fab_targets/pdl1.yaml](fab_targets/pdl1.yaml)
 - [denovo_zinc_finger_against_dna/zinc_finger.yaml](denovo_zinc_finger_against_dna/zinc_finger.yaml)
 - [protein_binding_small_molecule/chorismite.yaml](protein_binding_small_molecule/chorismite.yaml)
 

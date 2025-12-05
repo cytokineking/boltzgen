@@ -93,7 +93,10 @@ protocol_configs = {
         "filtering": ["use_affinity=true"],
     },
     "nanobody-anything": {
-        # Similar to peptide-anything we also avoid cysteins in inverse folding by default.
+        "analysis": ["largest_hydrophobic=false", "largest_hydrophobic_refolded=false"],
+        "filtering": ["filter_cysteine=true"],
+    },
+    "antibody-anything": {
         "analysis": ["largest_hydrophobic=false", "largest_hydrophobic_refolded=false"],
         "filtering": ["filter_cysteine=true"],
     },
@@ -260,7 +263,7 @@ def add_configure_arguments(
         default=None,
         help="Disallowed residues as a string of one letter amino acid codes, e.g. 'KEC'. "
         "This is implemented at the inverse fold step, so it only affects results if inverse folding is "
-        "enabled. Default: none for protein design, 'C' for peptide and nanobody design. Pass an empty list if you want Cysteins to be generated if you are using a nanobody or peptide protocol",
+        "enabled. Default: none for protein design, 'C' for peptide and antibody/nanobody design. Pass an empty list if you want Cysteins to be generated if you are using antibody/nanobody/peptide protocol",
     )
     p.add_argument(
         "--only_inverse_fold",
@@ -508,7 +511,7 @@ def build_merge_parser(subparsers) -> argparse.ArgumentParser:
     merge_parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="Allow reusing an existing destination; the merged design directory will be replaced if it exists.",
+        help="Ignored: kept temporarily for backwards compatibility. In all cases, the destination data is overwritten.",
     )
     return merge_parser
 
@@ -1026,7 +1029,7 @@ class BinderDesignPipeline:
                     if args.inverse_fold_avoid is not None
                     else (
                         "C"
-                        if protocol in ["peptide-anything", "nanobody-anything"]
+                        if protocol in ["peptide-anything", "nanobody-anything", "antibody-anything"]
                         else ""
                     )
                 )
@@ -1632,34 +1635,32 @@ def merge_command(args: argparse.Namespace) -> None:
     def _copy_path(src: Path, dst: Path, *, required: bool) -> None:
         if src.exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+            if dst.exists():
+                dst.unlink()
+            # Try to make a hard link if possible, otherwise copy
+            try:
+                os.link(src, dst)
+            except OSError:
+                shutil.copy2(src, dst)
         elif required:
             raise FileNotFoundError(f"Required file missing during merge: {src}")
 
     if not args.sources:
         raise ValueError("Provide at least one source directory to merge.")
 
+    dest_root = args.output.expanduser().resolve()
+
     source_roots: list[Path] = []
     for src in args.sources:
         root = Path(src).expanduser().resolve()
+        if root == dest_root:
+            print(f"Skipping {root} as it is the destination directory")
+            continue
         if not root.exists() or not root.is_dir():
             raise FileNotFoundError(f"Source directory not found: {root}")
         source_roots.append(root)
 
-    dest_root = args.output.expanduser().resolve()
-    if dest_root.exists():
-        if not dest_root.is_dir():
-            raise ValueError(f"Output path exists and is not a directory: {dest_root}")
-        if args.overwrite:
-            shutil.rmtree(dest_root)
-            dest_root.mkdir(parents=True)
-        elif any(dest_root.iterdir()):
-            raise ValueError(
-                f"Output directory {dest_root} already exists. "
-                "Use --overwrite to reuse it."
-            )
-    else:
-        dest_root.mkdir(parents=True)
+    dest_root.mkdir(parents=True, exist_ok=True)
 
     run_tags = {
         root: _slugify_run_tag(root, idx + 1) for idx, root in enumerate(source_roots)

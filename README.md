@@ -151,7 +151,8 @@ When the pipeline completes your output directory will have:
 | protein-anything         | Design proteins to bind proteins or peptides                              | Includes `design folding` step. |
 | peptide-anything         | Design (cyclic) peptides or others to bind proteins | No Cys are generated in inverse folding. No `design folding` step. Don't compute largest hydrophobic patch. |
 | protein-small_molecule   | Design proteins to bind small molecules                                | Includes binding affinity prediction. Includes `design folding` step. |
-| antibody-anything        | Design nanobodies, scFvs, fabs, or IGGs                 | No Cys are generated in inverse folding. No `design folding` step. Don't compute largest hydrophobic patch. |
+| antibody-anything        | Design antibody CDRs      | No Cys are generated in inverse folding. No `design folding` step. Don't compute largest hydrophobic patch. |
+| nanobody-anything        | Design nanobody CDRs      | Same settings as antibody-anything |
 
 All configuration parameters can be overridden using the `--config` option; see `boltzgen run --help` or the `Advanced Users` section below for details.
 
@@ -178,7 +179,7 @@ We provide many example `.yaml` files in the `example/` directory, including:
 - `example/vanilla_peptide_with_target_binding_site/beetletert.yaml`
 - `example/peptide_against_specific_site_on_ragc/rragc.yaml`
 - `example/nanobody/penguinpox.yaml`
-- `example/fab_antibody/pdl1.yaml`
+- `example/fab_targets/pdl1.yaml`
 - `example/denovo_zinc_finger_against_dna/zinc_finger.yaml`
 - `example/protein_binding_small_molecule/chorismite.yaml`
 
@@ -363,6 +364,9 @@ boltzgen run example/binding_disordered_peptides/tpp4.yaml \
   --alpha 0.2
 ```
 
+# Running on SLURM
+See [slurm-example](slurm-example).
+
 # All command line arguments
 
 ## `boltzgen run`
@@ -372,7 +376,7 @@ The `boltzgen run` command executes the BoltzGen binder design pipeline. Here ar
 - `design_spec` - Path(s) to design specification YAML file(s), or a directory containing prepared configs
 
 ### General Configuration
-- `--protocol {protein-anything,peptide-anything,protein-small_molecule,antibody-anything}` - Protocol to use for the design. This determines default settings and in some cases what steps are run. Default: protein-anything. See [Protocols](#protocols) section for details.
+- `--protocol {protein-anything,peptide-anything,protein-small_molecule,nanobody-anything,antibody-anything}` - Protocol to use for the design. This determines default settings and in some cases what steps are run. Default: protein-anything. See [Protocols](#protocols) section for details.
 - `--output OUTPUT` - Output directory for pipeline results
 - `--config CONFIG [CONFIG ...]` - Override pipeline step configuration, in format `<step_name> <arg1>=<value1> <arg2>=<value2> ...` (example: `--config folding num_workers=4 trainer.devices=4`). Can be used multiple times.
 - `--devices DEVICES` - Number of devices to use. Default is all devices available.
@@ -496,13 +500,12 @@ boltzgen run example/vanilla_protein/1g13prot.yaml \
 
 ### Usage
 ```bash
-boltzgen merge [-h] [--overwrite] --output OUTPUT source [source ...]
+boltzgen merge [-h] --output OUTPUT source [source ...]
 ```
 
 ### Arguments
 - `source` (positional) – One or more BoltzGen output directories that already contain folded/analyzed results (i.e., the directories you previously passed to `--output` when running the pipeline).
 - `--output OUTPUT` – Destination directory for the merged data. The command creates (or replaces) the design artifacts inside this folder so that `boltzgen run --steps filtering --output OUTPUT ...` can be executed afterwards.
-- `--overwrite` – Allow the destination directory (and its design subdirectory) to be replaced if they already exist.
 
 # Training BoltzGen models
 Install in dev mode which will install additional packages like `wandb`.
@@ -526,7 +529,7 @@ unzip msa.zip          # → training_data/msa/
 
 # ─ Small-molecule dictionary ─
 wget -O mols.zip "https://huggingface.co/datasets/boltzgen/inference-data/resolve/main/mols.zip?download=true"
-unzip mols.zip         # → training_data/mols/
+mkdir mols && cd mols && unzip ../mols.zip && cd ..
 
 # ─ Folding checkpoint  ─
 wget -O boltz2_fold.ckpt "https://huggingface.co/boltzgen/boltzgen-1/resolve/main/boltz2_conf_final.ckpt?download=true"
