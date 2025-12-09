@@ -97,7 +97,7 @@ def make_histogram(
 def get_best_folding_sample(folded):
     confidence = 0.8 * folded["design_to_target_iptm"] + 0.2 * folded["design_ptm"]
     best_idx = np.argmax(confidence)
-    
+
     # TODO: remove the "if k in folded"
     best_sample = {
         k: folded[k][best_idx] for k in const.eval_keys_confidence if k in folded
@@ -188,10 +188,19 @@ def count_noncovalents(feat):
         biotite_array, _ = hydride.add_hydrogen(biotite_array)
         hbond = biotite.structure.hbond(biotite_array)
     donor_idxs, acceptor_idxs = hbond[:, 0], hbond[:, 2]
-    cross_design_hbonds = (
-        biotite_array.is_design[donor_idxs] != biotite_array.is_design[acceptor_idxs]
+    donor_design_hbonds = int(
+        (
+            biotite_array.is_design[donor_idxs]
+            & ~biotite_array.is_chain_design[acceptor_idxs]
+        ).sum()
     )
-    metrics["plip_hbonds"] = int(cross_design_hbonds.sum())
+    acceptor_design_hbonds = int(
+        (
+            ~biotite_array.is_chain_design[donor_idxs]
+            & biotite_array.is_design[acceptor_idxs]
+        ).sum()
+    )
+    metrics["plip_hbonds"] = donor_design_hbonds + acceptor_design_hbonds
 
     # saltbridges
     pos_atoms = biotite_array[biotite_array.charge > 0]
@@ -204,10 +213,13 @@ def count_noncovalents(feat):
             (pos_neg_distances > 0.5) & (pos_neg_distances < 5.5)
         )
         # only keep the ones between design and non design
-        cross_design_saltbridges = (
-            pos_atoms.is_design[pos_idxs] != neg_atoms.is_design[neg_idxs]
+        pos_design_sb = int(
+            (pos_atoms.is_design[pos_idxs] & ~neg_atoms.is_chain_design[neg_idxs]).sum()
         )
-        metrics["plip_saltbridge"] = int(cross_design_saltbridges.sum())
+        neg_design_sb = int(
+            (~pos_atoms.is_chain_design[pos_idxs] & neg_atoms.is_design[neg_idxs]).sum()
+        )
+        metrics["plip_saltbridge"] = pos_design_sb + neg_design_sb
     else:
         metrics["plip_saltbridge"] = 0
     return metrics

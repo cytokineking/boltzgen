@@ -311,7 +311,6 @@ constraints:
 
 ```
 
-
 # Running only specific pipeline steps
 
 You can run only specific parts of the pipeline using the `--steps` flag:
@@ -323,6 +322,16 @@ boltzgen run example/cyclotide/3ivq.yaml \
   --protocol peptide-anything \
   --steps design inverse_folding \
   --num_designs 2
+```
+
+If you want to run only the inverse folding and subsequent design evaluation steps (but not the backbone design step), you can also run:
+
+**Run only inverse_folding step:**
+```bash
+boltzgen run example/inverse_folding/1brs.yaml \
+  --output workbench/if-only \
+  --only_inverse_fold \
+  --inverse_fold_num_sequences 2
 ```
 
 **Available steps:**
