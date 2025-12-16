@@ -73,10 +73,10 @@ docker build -t boltzgen .
 # Run an example
 mkdir -p workdir  # output
 mkdir -p cache    # where models will be downloaded to
-docker run --rm --gpus all -v "$(realpath workdir)":/workdir -v "$(realpath cache)":/cache -v "$(realpath example)":/example \
-  boltzgen run /example/vanilla_protein/1g13prot.yaml --output /workdir/test \
-  --protocol protein-anything \
-  --num_designs 2
+docker run --rm --gpus all -v "$(realpath workdir)":/workdir -v "$(realpath cache)":/cache -v "$(realpath example)":/example boltzgen \
+    boltzgen run /example/vanilla_protein/1g13prot.yaml --output /workdir/test \
+ 	--protocol protein-anything \
+  	--num_designs 2
 ```
 
 In the example above, the model weights are downloaded the first time the image is run. To bake the weights into the image at build time, run:

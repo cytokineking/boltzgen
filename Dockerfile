@@ -12,11 +12,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    python3.10 \
-    python3.10-dev \
-    python3-pip \
-    python3-venv \
-    python3-wheel \
+    software-properties-common \
+    curl \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
     build-essential \
     git \
     cmake \
@@ -30,9 +33,10 @@ RUN apt-get update && \
     libboost-all-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 && \
-    python -m pip install --upgrade pip setuptools setuptools_scm wheel
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 && \
+    python3.11 -m pip install --upgrade pip setuptools setuptools_scm wheel
 
 WORKDIR /app
 
@@ -57,6 +61,3 @@ RUN mkdir -p "${HF_HOME}" && chown -R ${USER_UID}:${USER_GID} "${HF_HOME}"
 
 USER ${USERNAME}
 WORKDIR /workspace
-
-ENTRYPOINT ["boltzgen"]
-CMD ["--help"]
