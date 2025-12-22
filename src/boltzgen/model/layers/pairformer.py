@@ -84,6 +84,7 @@ class PairformerModule(nn.Module):
                     pair_mask,
                     chunk_size_tri_attn,
                     use_kernels=use_kernels,
+                    use_reentrant=False,
                 )
             else:
                 s, z = layer(
