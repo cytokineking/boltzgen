@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 import subprocess
 import re
 import json
+import zipfile
 
 from boltzgen.task.analyze.analyze_utils import (
     TARGET_ID_RE,
@@ -230,6 +231,12 @@ class Analyze(Task):
                             completed_task_ids.add(idx)
                             pbar.update(1)
                             raise
+                        except Exception as e:
+                            print(f"Error computing metrics for idx {idx}: {e}. Skipping.")
+                            completed_task_ids.add(idx)
+                            pbar.update(1)
+                            if self._heartbeat is not None:
+                                self._heartbeat.update(produced=len(completed_task_ids))
 
             except BrokenProcessPool:
                 print("\nPOOL BROKEN: A worker died. Restarting with remaining tasks…")
@@ -271,7 +278,11 @@ class Analyze(Task):
         num_processes = min(self.num_processes, multiprocessing.cpu_count())
         if num_processes == 1:
             for idx in tqdm(range(num)):
-                sample_id = self.compute_metrics(idx)
+                try:
+                    sample_id = self.compute_metrics(idx)
+                except Exception as e:
+                    print(f"Error computing metrics for idx {idx}: {e}. Skipping.")
+                    sample_id = None
                 if sample_id is not None:
                     sample_ids.append(sample_id)
                 if self._heartbeat is not None:
@@ -294,7 +305,9 @@ class Analyze(Task):
             for f in self.metrics_dir.glob("metrics_*.npz")
         }
         sample_ids = sorted(data_ids & metrics_ids)
-        assert len(sample_ids) > 0
+        if len(sample_ids) == 0:
+            print("No metrics found to aggregate. Skipping aggregation step.")
+            return
 
         all_metrics, all_data = [], []
         for sample_id in tqdm(
@@ -634,7 +647,11 @@ class Analyze(Task):
                 metrics[f"full_sequence_{chain_id}"] = full_chain_seq
 
 
-        target_id = re.search(rf"{self.data.cfg.target_id_regex}", sample_id).group(1)
+        match = re.search(rf"{self.data.cfg.target_id_regex}", sample_id)
+        if not match:
+            print(f"Could not extract target_id for {sample_id}. Skipping.")
+            return None
+        target_id = match.group(1)
 
         # Get masks
         design_mask = feat["design_mask"].bool()
@@ -946,6 +963,9 @@ class Analyze(Task):
                 if not folded_path.exists():
                     print(f"Folded path does not exist. Skipping: {folded_path}")
                     return None
+                if not zipfile.is_zipfile(folded_path):
+                    print(f"Folded file is not a zip file. Skipping: {folded_path}")
+                    return None
 
                 try:
                     folded = np.load(
@@ -1017,6 +1037,9 @@ class Analyze(Task):
             folded_path = self.design_dir / const.folding_dirname / f"{feat['id']}.npz"
             if not folded_path.exists():
                 print(f"Folded path does not exist. Skipping: {folded_path}")
+                return None
+            if not zipfile.is_zipfile(folded_path):
+                print(f"Folded file is not a zip file. Skipping: {folded_path}")
                 return None
             try:
                 folded = np.load(
@@ -1190,6 +1213,9 @@ class Analyze(Task):
             )
             if not affinity_path.exists():
                 print(f"Affinity path does not exist. Skipping: {affinity_path}")
+                return None
+            if not zipfile.is_zipfile(affinity_path):
+                print(f"Affinity file is not a zip file. Skipping: {affinity_path}")
                 return None
 
             try:
