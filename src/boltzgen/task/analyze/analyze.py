@@ -300,12 +300,16 @@ class Analyze(Task):
         for sample_id in tqdm(
             sample_ids, desc=f"Loading saved metrics from disk. 1% of total"
         ):
-            data = np.load(
-                self.metrics_dir / f"data_{sample_id}.npz", allow_pickle=True
-            )
-            metrics = np.load(
-                self.metrics_dir / f"metrics_{sample_id}.npz", allow_pickle=True
-            )
+            try:
+                data = np.load(
+                    self.metrics_dir / f"data_{sample_id}.npz", allow_pickle=True
+                )
+                metrics = np.load(
+                    self.metrics_dir / f"metrics_{sample_id}.npz", allow_pickle=True
+                )
+            except Exception as e:
+                print(f"Error loading metrics/data for {sample_id}: {e}. Skipping.")
+                continue
             data = {
                 k: v.item() if v.shape == () else torch.tensor(v)
                 for k, v in data.items()
@@ -943,9 +947,13 @@ class Analyze(Task):
                     print(f"Folded path does not exist. Skipping: {folded_path}")
                     return None
 
-                folded = np.load(
-                    self.design_dir / const.folding_design_dirname / f"{feat['id']}.npz"
-                )
+                try:
+                    folded = np.load(
+                        self.design_dir / const.folding_design_dirname / f"{feat['id']}.npz"
+                    )
+                except Exception as e:
+                    print(f"Error loading folded design file {folded_path}: {e}. Skipping.")
+                    return None
                 feat_design = {
                     k: torch.from_numpy(folded[k]).squeeze(0)
                     for k in [
@@ -1010,9 +1018,13 @@ class Analyze(Task):
             if not folded_path.exists():
                 print(f"Folded path does not exist. Skipping: {folded_path}")
                 return None
-            folded = np.load(
-                self.design_dir / const.folding_dirname / f"{feat['id']}.npz"
-            )
+            try:
+                folded = np.load(
+                    self.design_dir / const.folding_dirname / f"{feat['id']}.npz"
+                )
+            except Exception as e:
+                print(f"Error loading folded file {folded_path}: {e}. Skipping.")
+                return None
             if (
                 not len(folded["res_type"].squeeze()) == len(feat["res_type"])
                 or not (folded["res_type"].squeeze() == feat["res_type"].numpy()).all()
@@ -1180,9 +1192,13 @@ class Analyze(Task):
                 print(f"Affinity path does not exist. Skipping: {affinity_path}")
                 return None
 
-            affinity = np.load(
-                self.design_dir / const.affinity_dirname / f"{feat['id']}.npz"
-            )
+            try:
+                affinity = np.load(
+                    self.design_dir / const.affinity_dirname / f"{feat['id']}.npz"
+                )
+            except Exception as e:
+                print(f"Error loading affinity file {affinity_path}: {e}. Skipping.")
+                return None
 
             for key in const.eval_keys_affinity:
                 if key in affinity:

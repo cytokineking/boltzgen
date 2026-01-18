@@ -296,11 +296,15 @@ class FromGeneratedDataset(torch.utils.data.Dataset):
         """
         # Get metadata
 
-        if self.reference_metadata_dir:
-            reference_metadata_path = self.reference_metadata_dir / metadata_path.name
-            metadata = np.load(reference_metadata_path)
-        else:
-            metadata = np.load(metadata_path)
+        try:
+            if self.reference_metadata_dir:
+                reference_metadata_path = self.reference_metadata_dir / metadata_path.name
+                metadata = np.load(reference_metadata_path)
+            else:
+                metadata = np.load(metadata_path)
+        except Exception as e:
+            print(f"Metadata loading failed for {metadata_path} with error {e}. Skipping.")
+            raise DataFetchException() from e
 
         # get conditioning information from metadata
         metadata_design_mask = metadata["design_mask"]

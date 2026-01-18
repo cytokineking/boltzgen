@@ -286,7 +286,11 @@ class PredictionDataset(torch.utils.data.Dataset):
             chain_id = None
 
         # Load record
-        record = load_record(pdb_id, self.dataset.record_dir)
+        try:
+            record = load_record(pdb_id, self.dataset.record_dir)
+        except Exception as e:
+            print(f"Failed to load record for {pdb_id} with error {e}. Skipping.")
+            return self.__getitem__(0)
         
         # Get the structure
         try:
@@ -361,7 +365,11 @@ class PredictionDataset(torch.utils.data.Dataset):
         msas = {}
         if self.msa_condition:
             chain_ids = set(tokenized.tokens["asym_id"])
-            msas = load_msas(record=record, chain_ids=chain_ids, msa_dir=self.msa_dir)
+            try:
+                msas = load_msas(record=record, chain_ids=chain_ids, msa_dir=self.msa_dir)
+            except Exception as e:
+                print(f"Failed to load MSAs for {pdb_id} with error {e}. Skipping.")
+                return self.__getitem__(0)
 
         try:
             # Try to find molecules in the dataset moldir if provided
