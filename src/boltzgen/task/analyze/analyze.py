@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 import subprocess
 import re
 import json
+import zipfile
 
 from boltzgen.task.analyze.analyze_utils import (
     TARGET_ID_RE,
@@ -46,6 +47,16 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from collections import defaultdict
+
+
+def _load_metrics_pair(metrics_dir: Path, sample_id: str):
+    try:
+        data = np.load(metrics_dir / f"data_{sample_id}.npz", allow_pickle=True)
+        metrics = np.load(metrics_dir / f"metrics_{sample_id}.npz", allow_pickle=True)
+    except Exception as e:
+        print(f"Error loading metrics/data for {sample_id}: {e}. Skipping.")
+        return None
+    return sample_id, dict(data.items()), dict(metrics.items())
 
 from boltzgen.data import const
 from boltzgen.task.task import Task
@@ -105,6 +116,7 @@ class Analyze(Task):
         foldseek_binary: str = "/data/rbg/users/hstark/foldseek/bin/foldseek",
         skip_specific_ids: List[str] = None,
         designfolding_metrics: bool = False,
+        use_design_mask_for_target: bool = False,
     ) -> None:
         """Initialize the task.
 
@@ -153,6 +165,7 @@ class Analyze(Task):
         self.wandb = wandb
         self.slurm = slurm
         self.diversity_subset = diversity_subset
+        self.use_design_mask_for_target = use_design_mask_for_target
 
         # Prevent each worker process from spawning its own multithreaded pools
         torch.set_num_threads(1)
@@ -230,6 +243,12 @@ class Analyze(Task):
                             completed_task_ids.add(idx)
                             pbar.update(1)
                             raise
+                        except Exception as e:
+                            print(f"Error computing metrics for idx {idx}: {e}. Skipping.")
+                            completed_task_ids.add(idx)
+                            pbar.update(1)
+                            if self._heartbeat is not None:
+                                self._heartbeat.update(produced=len(completed_task_ids))
 
             except BrokenProcessPool:
                 print("\nPOOL BROKEN: A worker died. Restarting with remaining tasks…")
@@ -271,7 +290,11 @@ class Analyze(Task):
         num_processes = min(self.num_processes, multiprocessing.cpu_count())
         if num_processes == 1:
             for idx in tqdm(range(num)):
-                sample_id = self.compute_metrics(idx)
+                try:
+                    sample_id = self.compute_metrics(idx)
+                except Exception as e:
+                    print(f"Error computing metrics for idx {idx}: {e}. Skipping.")
+                    sample_id = None
                 if sample_id is not None:
                     sample_ids.append(sample_id)
                 if self._heartbeat is not None:
@@ -294,32 +317,60 @@ class Analyze(Task):
             for f in self.metrics_dir.glob("metrics_*.npz")
         }
         sample_ids = sorted(data_ids & metrics_ids)
-        assert len(sample_ids) > 0
+        if len(sample_ids) == 0:
+            print("No metrics found to aggregate. Skipping aggregation step.")
+            return
 
         all_metrics, all_data = [], []
-        for sample_id in tqdm(
-            sample_ids, desc=f"Loading saved metrics from disk. 1% of total"
-        ):
-            try:
-                data = np.load(
-                    self.metrics_dir / f"data_{sample_id}.npz", allow_pickle=True
-                )
-                metrics = np.load(
-                    self.metrics_dir / f"metrics_{sample_id}.npz", allow_pickle=True
-                )
-            except Exception as e:
-                print(f"Error loading metrics/data for {sample_id}: {e}. Skipping.")
-                continue
-            data = {
-                k: v.item() if v.shape == () else torch.tensor(v)
-                for k, v in data.items()
-            }
-            metrics = {
-                k: v.item() if v.shape == () else torch.tensor(v)
-                for k, v in metrics.items()
-            }
-            all_metrics.append(metrics)
-            all_data.append(data)
+        num_workers = min(self.num_processes, multiprocessing.cpu_count())
+        if num_workers <= 1:
+            for sample_id in tqdm(
+                sample_ids, desc=f"Loading saved metrics from disk. 1% of total"
+            ):
+                res = _load_metrics_pair(self.metrics_dir, sample_id)
+                if res is None:
+                    continue
+                _, data_raw, metrics_raw = res
+                data = {
+                    k: v.item() if v.shape == () else torch.tensor(v)
+                    for k, v in data_raw.items()
+                }
+                metrics = {
+                    k: v.item() if v.shape == () else torch.tensor(v)
+                    for k, v in metrics_raw.items()
+                }
+                all_metrics.append(metrics)
+                all_data.append(data)
+        else:
+            ctx = multiprocessing.get_context("spawn")
+            with ProcessPoolExecutor(max_workers=num_workers, mp_context=ctx) as ex:
+                futures = [
+                    ex.submit(_load_metrics_pair, self.metrics_dir, sample_id)
+                    for sample_id in sample_ids
+                ]
+                for f in tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc=f"Loading saved metrics from disk. 1% of total",
+                ):
+                    try:
+                        res = f.result()
+                    except Exception as e:
+                        print(f"Error loading metrics/data: {e}. Skipping.")
+                        continue
+                    if res is None:
+                        continue
+                    _, data_raw, metrics_raw = res
+                    data = {
+                        k: v.item() if v.shape == () else torch.tensor(v)
+                        for k, v in data_raw.items()
+                    }
+                    metrics = {
+                        k: v.item() if v.shape == () else torch.tensor(v)
+                        for k, v in metrics_raw.items()
+                    }
+                    all_metrics.append(metrics)
+                    all_data.append(data)
         df = pd.DataFrame(all_metrics)
 
         # Cast per-motif integer fields and reconstruct a consolidated details column
@@ -634,7 +685,11 @@ class Analyze(Task):
                 metrics[f"full_sequence_{chain_id}"] = full_chain_seq
 
 
-        target_id = re.search(rf"{self.data.cfg.target_id_regex}", sample_id).group(1)
+        match = re.search(rf"{self.data.cfg.target_id_regex}", sample_id)
+        if not match:
+            print(f"Could not extract target_id for {sample_id}. Skipping.")
+            return None
+        target_id = match.group(1)
 
         # Get masks
         design_mask = feat["design_mask"].bool()
@@ -642,7 +697,12 @@ class Analyze(Task):
 
         design_resolved_mask = design_mask & feat["token_resolved_mask"].bool()
 
-        target_resolved_mask = (~chain_design_mask) & feat["token_resolved_mask"].bool()
+        # For symmetric designs where all chains have designed residues, use design_mask
+        # instead of chain_design_mask so "target" = non-designed residues (not empty)
+        if self.use_design_mask_for_target:
+            target_resolved_mask = (~design_mask) & feat["token_resolved_mask"].bool()
+        else:
+            target_resolved_mask = (~chain_design_mask) & feat["token_resolved_mask"].bool()
         atom_design_resolved_mask = (
             (feat["atom_to_token"].float() @ design_resolved_mask.unsqueeze(-1).float())
             .bool()
@@ -946,6 +1006,9 @@ class Analyze(Task):
                 if not folded_path.exists():
                     print(f"Folded path does not exist. Skipping: {folded_path}")
                     return None
+                if not zipfile.is_zipfile(folded_path):
+                    print(f"Folded file is not a zip file. Skipping: {folded_path}")
+                    return None
 
                 try:
                     folded = np.load(
@@ -1017,6 +1080,9 @@ class Analyze(Task):
             folded_path = self.design_dir / const.folding_dirname / f"{feat['id']}.npz"
             if not folded_path.exists():
                 print(f"Folded path does not exist. Skipping: {folded_path}")
+                return None
+            if not zipfile.is_zipfile(folded_path):
+                print(f"Folded file is not a zip file. Skipping: {folded_path}")
                 return None
             try:
                 folded = np.load(
@@ -1191,6 +1257,9 @@ class Analyze(Task):
             if not affinity_path.exists():
                 print(f"Affinity path does not exist. Skipping: {affinity_path}")
                 return None
+            if not zipfile.is_zipfile(affinity_path):
+                print(f"Affinity file is not a zip file. Skipping: {affinity_path}")
+                return None
 
             try:
                 affinity = np.load(
@@ -1211,6 +1280,13 @@ class Analyze(Task):
                 metrics["affinity_probability_binary1>75"] = (
                     metrics["affinity_probability_binary1"] > 0.75
                 )
+        
+        for key in const.eval_keys_confidence:
+            if key in feat:
+                if isinstance(feat[key], torch.Tensor) and feat[key].numel() == 1:
+                    metrics[key] = feat[key].item()
+                elif isinstance(feat[key], (float, int)):
+                    metrics[key] = feat[key]
 
         # Write outputs to files and return sample_id for conformation of successful processing
         data = {
