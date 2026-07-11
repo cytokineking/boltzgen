@@ -48,6 +48,16 @@ import pandas as pd
 from tqdm import tqdm
 from collections import defaultdict
 
+
+def _load_metrics_pair(metrics_dir: Path, sample_id: str):
+    try:
+        data = np.load(metrics_dir / f"data_{sample_id}.npz", allow_pickle=True)
+        metrics = np.load(metrics_dir / f"metrics_{sample_id}.npz", allow_pickle=True)
+    except Exception as e:
+        print(f"Error loading metrics/data for {sample_id}: {e}. Skipping.")
+        return None
+    return sample_id, dict(data.items()), dict(metrics.items())
+
 from boltzgen.data import const
 from boltzgen.task.task import Task
 from boltzgen.data.data import Structure
@@ -312,29 +322,55 @@ class Analyze(Task):
             return
 
         all_metrics, all_data = [], []
-        for sample_id in tqdm(
-            sample_ids, desc=f"Loading saved metrics from disk. 1% of total"
-        ):
-            try:
-                data = np.load(
-                    self.metrics_dir / f"data_{sample_id}.npz", allow_pickle=True
-                )
-                metrics = np.load(
-                    self.metrics_dir / f"metrics_{sample_id}.npz", allow_pickle=True
-                )
-            except Exception as e:
-                print(f"Error loading metrics/data for {sample_id}: {e}. Skipping.")
-                continue
-            data = {
-                k: v.item() if v.shape == () else torch.tensor(v)
-                for k, v in data.items()
-            }
-            metrics = {
-                k: v.item() if v.shape == () else torch.tensor(v)
-                for k, v in metrics.items()
-            }
-            all_metrics.append(metrics)
-            all_data.append(data)
+        num_workers = min(self.num_processes, multiprocessing.cpu_count())
+        if num_workers <= 1:
+            for sample_id in tqdm(
+                sample_ids, desc=f"Loading saved metrics from disk. 1% of total"
+            ):
+                res = _load_metrics_pair(self.metrics_dir, sample_id)
+                if res is None:
+                    continue
+                _, data_raw, metrics_raw = res
+                data = {
+                    k: v.item() if v.shape == () else torch.tensor(v)
+                    for k, v in data_raw.items()
+                }
+                metrics = {
+                    k: v.item() if v.shape == () else torch.tensor(v)
+                    for k, v in metrics_raw.items()
+                }
+                all_metrics.append(metrics)
+                all_data.append(data)
+        else:
+            ctx = multiprocessing.get_context("spawn")
+            with ProcessPoolExecutor(max_workers=num_workers, mp_context=ctx) as ex:
+                futures = [
+                    ex.submit(_load_metrics_pair, self.metrics_dir, sample_id)
+                    for sample_id in sample_ids
+                ]
+                for f in tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc=f"Loading saved metrics from disk. 1% of total",
+                ):
+                    try:
+                        res = f.result()
+                    except Exception as e:
+                        print(f"Error loading metrics/data: {e}. Skipping.")
+                        continue
+                    if res is None:
+                        continue
+                    _, data_raw, metrics_raw = res
+                    data = {
+                        k: v.item() if v.shape == () else torch.tensor(v)
+                        for k, v in data_raw.items()
+                    }
+                    metrics = {
+                        k: v.item() if v.shape == () else torch.tensor(v)
+                        for k, v in metrics_raw.items()
+                    }
+                    all_metrics.append(metrics)
+                    all_data.append(data)
         df = pd.DataFrame(all_metrics)
 
         # Cast per-motif integer fields and reconstruct a consolidated details column
